@@ -52,7 +52,7 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
     public Page<MemberTeamDto> searchPageSimple(MemberSearchCondition condition, Pageable pageable) {
         //원래는 fetchResults(), querydsl에서 total count 쿼리 실행해줌
         //QueryDsl 5.0.0 부터 fetchResults(), fetchCounts() -> deprecated, fetch() 사용 권장
-        QueryResults<MemberTeamDto> results = queryFactory
+        List<MemberTeamDto> content = queryFactory
                 .select(new QMemberTeamDto(
                         member.id.as("memberId"),
                         member.username,
@@ -69,8 +69,7 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
                 )
                 .offset(pageable.getOffset()) //몇번째부터 시작?, 몇번째를 스킵하고 몇번째부터 시작
                 .limit(pageable.getPageSize()) //한번 조회할때 몇개
-                .fetchResults();
-        List<MemberTeamDto> content = results.getResults();
+                .fetch();
 
         return new PageImpl<>(content, pageable, content.size());
 
@@ -99,8 +98,8 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
                 .limit(pageable.getPageSize()) //한번 조회할때 몇개
                 .fetch();
 
-        JPAQuery<Member> countQuery = queryFactory
-                .select(member)
+        JPAQuery<Long> countQuery = queryFactory
+                .select(member.count())
                 .from(member)
                 .leftJoin(member.team, team)
                 .where(
@@ -110,7 +109,7 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
                         ageLoe(condition.getAgeLoe())
                 );
         //content의 size가 page의 size보다 작거나, 마지막 페이지인 경우 -> countQuery 호출하지 않음
-        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchCount);
+        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
     }
 
     private BooleanExpression usernameEq(String username) {
